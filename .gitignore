@@ -1,0 +1,13 @@
+# sbt
+target/
+project/target/
+
+# intellij idea
+*.log
+*.iml
+*.ipr
+*.iws
+.idea
+
+# mac
+.DS_Store
