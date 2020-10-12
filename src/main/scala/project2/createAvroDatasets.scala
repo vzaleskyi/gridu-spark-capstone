@@ -14,8 +14,17 @@ object createAvroDatasets extends App {
   val userDirData = Seq(
     (1,"Robert","Smith"),
     (2,"John","Johnson"),
-    (3,"Alex","Jones")
+    (3,"Alex","Jones"),
+    (4,"John1","Johnson"),
+    (5,"John2","Johnson"),
+    (6,"John3","Johnson"),
+    (7,"John4","Johnson"),
+    (8,"John5","Johnson"),
+    (9,"John6","Johnson"),
+    (10,"John7","Johnson"),
+    (11,"John8","Johnson")
   )
+
   val msgDirData = Seq(
     (11,"text"),
     (12,"text"),
@@ -30,6 +39,10 @@ object createAvroDatasets extends App {
     (1,2,11),
     (1,3,11),
     (2,5,11),
+    (2,6,11),
+    (2,7,11),
+    (2,8,11),
+    (2,9,11),
     (3,7,11),
     (7,14,11),
     (5,33,11),

@@ -11,7 +11,7 @@ class Project2Test extends FunSuite {
       "src/main/resources/msg.avro",
       "src/main/resources/retweet.avro"
     ).rdd.map(r => (r(0), r(1), r(2), r(3), r(4))).collect.toList
-    val expectedRes = (1,"Robert","Smith","text",4)
+    val expectedRes = (1,"Robert","Smith","text", 8)
     assert(
       actualRes(0) === expectedRes
     )

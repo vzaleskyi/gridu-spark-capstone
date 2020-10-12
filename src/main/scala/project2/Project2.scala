@@ -30,31 +30,51 @@ object Project2 extends App{
     val windowAgg  = Window.partitionBy("USER_ID")
     val aggDf = retweetDF.withColumn("sub_cnt",count("SUBSCRIBER_ID").over(windowAgg)).select("*")
 
-    val userSub1WavesCnt = aggDf.as("wave1").join(
+    val userSubWavesCnt = aggDf.as("wave1").join(
       aggDf.as("wave2"),
       (col("wave1.SUBSCRIBER_ID") === col("wave2.USER_ID"))
         && (col("wave1.MESSAGE_ID") === col("wave2.MESSAGE_ID")),"inner")
       .select(
         col("wave1.USER_ID").as("USER_ID"),
         col("wave1.MESSAGE_ID").as("MESSAGE_ID"),
-        col("wave2.sub_cnt").as("SUB_CNT_1_WAVE")
-      ).orderBy("USER_ID")
-    //  select all
-    //  +-------+-------------+----------+-------+-------+-------------+----------+-------+
-    //  |USER_ID|SUBSCRIBER_ID|MESSAGE_ID|sub_cnt|USER_ID|SUBSCRIBER_ID|MESSAGE_ID|sub_cnt|
-    //  +-------+-------------+----------+-------+-------+-------------+----------+-------+
-    //  |      1|            2|        11|      2|      2|            5|        11|      2|
-    //  |      1|            3|        11|      2|      3|            7|        11|      2|
-    //  |      3|            7|        11|      2|      7|           14|        11|      1|
-    //  |      2|            5|        11|      2|      5|           33|        11|      1|
-    //  +-------+-------------+----------+-------+-------+-------------+----------+-------+
+        col("wave1.sub_cnt").as("1st_wave_cnt"),
+        col("wave2.sub_cnt").as("2d_wave_cnt"),
+      )
+      .groupBy(col("USER_ID"), col("MESSAGE_ID"), col("1st_wave_cnt"))
+      .agg(max(col("2d_wave_cnt")).as("2d_wave_cnt_max"))
+      .withColumn("NUMBER_RETWEETS", col("1st_wave_cnt")+col("2d_wave_cnt_max"))
 
-    val userSub2WavesTop1Cnt = userSub1WavesCnt
-      .groupBy("USER_ID", "MESSAGE_ID")
-      .agg(sum("SUB_CNT_1_WAVE").as("NUMBER_RETWEETS"))
-      .orderBy(col("NUMBER_RETWEETS").desc).limit(1)
+//    userSubWavesCnt.show()
+//    userSubWavesCnt
 
-    userSub2WavesTop1Cnt.as("top")
+    // select all
+//      +-------+-------------+----------+-------+-------+-------------+----------+-------+
+//      |USER_ID|SUBSCRIBER_ID|MESSAGE_ID|sub_cnt|USER_ID|SUBSCRIBER_ID|MESSAGE_ID|sub_cnt|
+//      +-------+-------------+----------+-------+-------+-------------+----------+-------+
+//      |      1|            2|        11|      2|      2|            5|        11|      6|
+//      |      1|            2|        11|      2|      2|            7|        11|      6|
+//      |      1|            2|        11|      2|      2|            9|        11|      6|
+//      |      1|            2|        11|      2|      2|            6|        11|      6|
+//      |      1|            2|        11|      2|      2|            8|        11|      6|
+//      |      1|            3|        11|      2|      3|            7|        11|      2|
+//      |      2|            5|        11|      6|      5|           33|        11|      1|
+//      |      3|            7|        11|      2|      7|           14|        11|      1|
+//      |      2|            7|        11|      6|      7|           14|        11|      1|
+//      +-------+-------------+----------+-------+-------+-------------+----------+-------+
+
+    val userSubWavesTop10Cnt = userSubWavesCnt
+      .select(
+        col("USER_ID"),
+        col("MESSAGE_ID"),
+        col("NUMBER_RETWEETS")
+      )
+      .distinct()
+      .orderBy(col("NUMBER_RETWEETS").desc).limit(10)
+
+//    userSubWavesTop10Cnt.show()
+//    userSubWavesTop10Cnt
+
+    userSubWavesTop10Cnt.as("top")
       .join(
         userDF.as("name"),
         col("top.USER_ID") === col("name.USER_ID")
@@ -75,7 +95,7 @@ object Project2 extends App{
                                "src/main/resources/msg.avro",
                             "src/main/resources/retweet.avro"
                               )
-  res.show()
+//  res.show()
   //  val res = findProvocativePost(userDirReadDf, msgDirReadDf, msgReadDf, retweetReadDf)
   //               .rdd.map(r => (r(0), r(1), r(2), r(3), r(4))).collect.toList
   //  println(res(0))
