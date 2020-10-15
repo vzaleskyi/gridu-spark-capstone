@@ -1,7 +1,8 @@
 /**
  * You need to read Avro files and solve the following task:
  * "A user posts a provocative message on Twitter. His subscribers do a retweet. Later, every subscriber's subscriber does retweet too."
- * Find the top ten users by a number of retweets in the first and second waves.
+ *
+ * Find the TOP TEN USERS by a number of retweets in the FIRST AND SECOND WAVES.
  */
 package project2
 
@@ -27,54 +28,75 @@ object Project2 extends App{
     val msgDF = spark.read.format("avro").load(msgDataPath)
     val retweetDF = spark.read.format("avro").load(retweetDataPath)
 
-    val windowAgg  = Window.partitionBy("USER_ID")
-    val aggDf = retweetDF.withColumn("sub_cnt",count("SUBSCRIBER_ID").over(windowAgg)).select("*")
-
-    val userSubWavesCnt = aggDf.as("wave1").join(
-      aggDf.as("wave2"),
-      (col("wave1.SUBSCRIBER_ID") === col("wave2.USER_ID"))
-        && (col("wave1.MESSAGE_ID") === col("wave2.MESSAGE_ID")),"inner")
-      .select(
-        col("wave1.USER_ID").as("USER_ID"),
-        col("wave1.MESSAGE_ID").as("MESSAGE_ID"),
-        col("wave1.sub_cnt").as("1st_wave_cnt"),
-        col("wave2.sub_cnt").as("2d_wave_cnt"),
+    val wave1 = msgDF.as("msg")
+      .join(
+        retweetDF.as("rtw"),
+        col("msg.AUTHOR_ID") === col("rtw.USER_ID")
       )
-      .groupBy(col("USER_ID"), col("MESSAGE_ID"), col("1st_wave_cnt"))
-      .agg(max(col("2d_wave_cnt")).as("2d_wave_cnt_max"))
-      .withColumn("NUMBER_RETWEETS", col("1st_wave_cnt")+col("2d_wave_cnt_max"))
-
-//    userSubWavesCnt.show()
-//    userSubWavesCnt
-
-    // select all
-//      +-------+-------------+----------+-------+-------+-------------+----------+-------+
-//      |USER_ID|SUBSCRIBER_ID|MESSAGE_ID|sub_cnt|USER_ID|SUBSCRIBER_ID|MESSAGE_ID|sub_cnt|
-//      +-------+-------------+----------+-------+-------+-------------+----------+-------+
-//      |      1|            2|        11|      2|      2|            5|        11|      6|
-//      |      1|            2|        11|      2|      2|            7|        11|      6|
-//      |      1|            2|        11|      2|      2|            9|        11|      6|
-//      |      1|            2|        11|      2|      2|            6|        11|      6|
-//      |      1|            2|        11|      2|      2|            8|        11|      6|
-//      |      1|            3|        11|      2|      3|            7|        11|      2|
-//      |      2|            5|        11|      6|      5|           33|        11|      1|
-//      |      3|            7|        11|      2|      7|           14|        11|      1|
-//      |      2|            7|        11|      6|      7|           14|        11|      1|
-//      +-------+-------------+----------+-------+-------+-------------+----------+-------+
-
-    val userSubWavesTop10Cnt = userSubWavesCnt
+      .filter(col("msg.MESSAGE_ID") === col("rtw.MESSAGE_ID"))
       .select(
-        col("USER_ID"),
-        col("MESSAGE_ID"),
-        col("NUMBER_RETWEETS")
+        "rtw.USER_ID",
+        "rtw.SUBSCRIBER_ID",
+        "rtw.MESSAGE_ID"
       )
-      .distinct()
+
+//    wave1.show()
+//    wave1
+//      |USER_ID|SUBSCRIBER_ID|MESSAGE_ID|
+//      +-------+-------------+----------+
+//      |      1|            2|        11|
+//      |      1|            3|        11|
+//      |      2|            4|        12|
+//      |      3|            8|        13|
+
+    val wave1Cnt = wave1.groupBy("USER_ID", "MESSAGE_ID")
+      .agg(count("SUBSCRIBER_ID").as("NUMBER_RETWEETS"))
       .orderBy(col("NUMBER_RETWEETS").desc).limit(10)
+      .withColumn("WAVE", lit("FIRST"))
 
-//    userSubWavesTop10Cnt.show()
-//    userSubWavesTop10Cnt
+//    wave1Cnt.show()
+//    wave1Cnt
 
-    userSubWavesTop10Cnt.as("top")
+    val wave2 = wave1.as("wave1").join(
+      retweetDF.as("rtw"),
+      (col("wave1.SUBSCRIBER_ID") === col("rtw.USER_ID"))
+        && (col("wave1.MESSAGE_ID") === col("rtw.MESSAGE_ID")),
+      "inner")
+      .select(
+//        col("wave1.USER_ID").as("USER_ID"),
+//        col("wave1.MESSAGE_ID").as("MESSAGE_ID"),
+//        col("wave1.SUBSCRIBER_ID").as("SUBSCRIBER_ID"),
+        col("rtw.USER_ID"),//.as("USER_ID"),
+        col("rtw.SUBSCRIBER_ID"),//.as("SUBSCRIBER_ID"),
+        col("rtw.MESSAGE_ID")//.as("MESSAGE_ID")
+      )
+
+//    wave2.show()
+//    wave2
+//      |USER_ID|MESSAGE_ID|SUBSCRIBER_ID|USER_ID|SUBSCRIBER_ID|MESSAGE_ID|
+//      +-------+----------+-------------+-------+-------------+----------+
+//      |      1|        11|            2|      2|            9|        11|
+//      |      1|        11|            2|      2|            8|        11|
+//      |      1|        11|            2|      2|            7|        11|
+//      |      1|        11|            2|      2|            6|        11|
+//      |      1|        11|            2|      2|            5|        11|
+//      |      1|        11|            3|      3|           17|        11|
+//      |      1|        11|            3|      3|           16|        11|
+//      |      1|        11|            3|      3|           15|        11|
+//      |      1|        11|            3|      3|           14|        11|
+//      |      1|        11|            3|      3|           13|        11|
+//      |      1|        11|            3|      3|           12|        11|
+//      |      1|        11|            3|      3|            7|        11|
+
+  val wave2Cnt = wave2.groupBy("USER_ID", "MESSAGE_ID")
+    .agg(count("SUBSCRIBER_ID").as("NUMBER_RETWEETS"))
+    .orderBy(col("NUMBER_RETWEETS").desc).limit(10)
+    .withColumn("WAVE", lit("SECOND"))
+
+//    wave2Cnt.show()
+//    wave2Cnt
+
+    val userSub1WavesTop10Cnt = wave1Cnt.as("top")
       .join(
         userDF.as("name"),
         col("top.USER_ID") === col("name.USER_ID")
@@ -82,12 +104,30 @@ object Project2 extends App{
       msgDirDF.as("msg"),
       col("top.MESSAGE_ID") === col("msg.MESSAGE_ID")
     ).select(
+      "top.WAVE",
       "top.USER_ID",
       "name.FIRST_NAME",
       "name.LAST_NAME",
       "msg.TEXT",
       "top.NUMBER_RETWEETS"
     )
+
+    val userSub2WavesTop10Cnt = wave2Cnt.as("top")
+      .join(
+        userDF.as("name"),
+        col("top.USER_ID") === col("name.USER_ID")
+      ).join(
+      msgDirDF.as("msg"),
+      col("top.MESSAGE_ID") === col("msg.MESSAGE_ID")
+    ).select(
+      "top.WAVE",
+      "top.USER_ID",
+      "name.FIRST_NAME",
+      "name.LAST_NAME",
+      "msg.TEXT",
+      "top.NUMBER_RETWEETS"
+    )
+    userSub1WavesTop10Cnt.union(userSub2WavesTop10Cnt)
   }
 
   val res =findProvocativePost("src/main/resources/user_dir.avro",
@@ -95,10 +135,10 @@ object Project2 extends App{
                                "src/main/resources/msg.avro",
                             "src/main/resources/retweet.avro"
                               )
-//  res.show()
-  //  val res = findProvocativePost(userDirReadDf, msgDirReadDf, msgReadDf, retweetReadDf)
-  //               .rdd.map(r => (r(0), r(1), r(2), r(3), r(4))).collect.toList
-  //  println(res(0))
+//    .rdd.map(r => (r(0), r(1), r(2), r(3), r(4), r(5))).collect.toList
+//    println(res(0))
+//    println(res(3))
+    res.show()
 }
 
 

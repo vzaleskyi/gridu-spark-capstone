@@ -22,7 +22,13 @@ object createAvroDatasets extends App {
     (8,"John5","Johnson"),
     (9,"John6","Johnson"),
     (10,"John7","Johnson"),
-    (11,"John8","Johnson")
+    (11,"John8","Johnson"),
+    (12,"John8","Johnson"),
+    (13,"John8","Johnson"),
+    (14,"John8","Johnson"),
+    (15,"John8","Johnson"),
+    (16,"John8","Johnson"),
+    (17,"John8","Johnson")
   )
 
   val msgDirData = Seq(
@@ -35,6 +41,7 @@ object createAvroDatasets extends App {
     (2,12),
     (3,13)
   )
+
   val retweetData = Seq(
     (1,2,11),
     (1,3,11),
@@ -44,6 +51,12 @@ object createAvroDatasets extends App {
     (2,8,11),
     (2,9,11),
     (3,7,11),
+    (3,12,11),
+    (3,13,11),
+    (3,14,11),
+    (3,15,11),
+    (3,16,11),
+    (3,17,11),
     (7,14,11),
     (5,33,11),
     (2,4,12),
@@ -54,7 +67,7 @@ object createAvroDatasets extends App {
 
   val userDirShema = Seq("USER_ID", "FIRST_NAME", "LAST_NAME")
   val msgDirShema = Seq("MESSAGE_ID", "TEXT")
-  val msgShema = Seq("USER_ID", "MESSAGE_ID")
+  val msgShema = Seq("AUTHOR_ID", "MESSAGE_ID")
   val retweetShema = Seq("USER_ID", "SUBSCRIBER_ID", "MESSAGE_ID")
 
   val userDirDf = userDirData.toDF(userDirShema:_*)
